@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Website Information Finder</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font for Inter */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .container-wrapper {
+            min-height: 100vh; /* Ensure container takes full viewport height */
+            display: flex;
+            align-items: center; /* Center vertically */
+            justify-content: center; /* Center horizontally */
+            padding: 1rem; /* Add some padding on smaller screens */
+        }
+        /* Style for code snippets in the about page */
+        .api-code-block {
+            background-color: #e0e0e0;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            font-size: 0.875rem;
+            color: #333;
+            overflow-x: auto;
+            word-break: break-all; /* Ensures long URLs wrap */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">About Website Information Finder</h1>
+
+        <p class="text-gray-700 mb-4">
+            This application allows you to quickly retrieve information about a website, including its hosting provider and a visual screenshot.
+        </p>
+
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">How it Works:</h2>
+        <ul class="list-disc list-inside text-gray-700 mb-6 space-y-2">
+            <li>
+                <strong>Hosting Provider:</strong> We use the <strong>WhoisXML API</strong> to perform a WHOIS lookup on the domain name you provide. This API provides details about the domain registration, including the organization that registers or hosts the domain.
+            </li>
+            <li>
+                <strong>Website Screenshot:</strong> We utilize the <strong>ScreenshotMachine API</strong> to generate a high-quality screenshot of the specified website at a fixed resolution of 2000x1024 pixels.
+            </li>
+        </ul>
+
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">API Information:</h2>
+        <div class="mb-6 space-y-4">
+            <div>
+                <h3 class="text-xl font-medium text-gray-800 mb-2">1. WhoisXML API (for Hosting Provider)</h3>
+                <p class="text-gray-700 mb-1"><strong>API Key:</strong></p>
+                <div class="api-code-block mb-2">
+                    <code>at_upGEcOcy793IfBsXS4qjDz9EHUSg2</code>
+                </div>
+                <p class="text-gray-700 mb-1"><strong>Endpoint Example:</strong></p>
+                <div class="api-code-block">
+                    <code>https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=<span class="font-bold">YOUR_KEY</span>&domainName=example.com&outputFormat=JSON</code>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-medium text-gray-800 mb-2">2. ScreenshotMachine API (for Website Screenshots)</h3>
+                <p class="text-gray-700 mb-1"><strong>API Key:</strong></p>
+                <div class="api-code-block mb-2">
+                    <code>4bde29</code>
+                </div>
+                <p class="text-gray-700 mb-1"><strong>Endpoint Example:</strong></p>
+                <div class="api-code-block">
+                    <code>https://api.screenshotmachine.com?key=<span class="font-bold">YOUR_KEY</span>&url=https%3A%2F%2Fwww.google.com&dimension=2000x1024&format=png</code>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Our Goal</h2>
+        <p class="text-gray-700 mb-6">
+            Our aim is to provide a simple, efficient tool for users to gather essential information about websites quickly and easily.
+        </p>
+
+        <!-- Our Other Services section -->
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Our Other Services</h2>
+        <div class="mb-6">
+            <div class="bg-gray-100 p-4 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-xl font-medium text-gray-800 mb-2">Email Service Tester</h3>
+                <p class="text-gray-700 mb-4">Check that you are correctly receiving emails.</p>
+                <a href="https://checkmyemail.github.io/index.html?hidebanner=true" class="inline-block bg-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-200">
+                    Go to Service
+                </a>
+            </div>
+        </div>
+        
+        <div class="text-center">
+            <a href="index.html" class="inline-block bg-blue-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200">
+                Back to Home
+            </a>
+        </div>
+    </div>
+</body>
+</html>
