@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Info Finder</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font for Inter */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .container-wrapper {
+            min-height: 100vh; /* Ensure container takes full viewport height */
+            display: flex;
+            align-items: center; /* Center vertically */
+            justify-content: center; /* Center horizontally */
+            padding: 1rem; /* Add some padding on smaller screens */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-2xl">
+        <h1 id="mainTitle" class="text-3xl font-bold text-gray-800 mb-6 text-center">Website Information Finder</h1>
+
+        <!-- New: Maximum Limit Reached message -->
+        <div id="limitReachedMessage" class="hidden text-center p-6 bg-red-50 rounded-lg border border-red-200">
+            <h2 class="text-2xl font-bold text-red-700 mb-4">Maximum Limit Reached</h2>
+            <img src="https://cdn.undraw.co/illustration/coming-soon_7lvi.svg" alt="Oops! Limit Reached" class="mx-auto mb-4 rounded-lg w-48 h-auto">
+            <p class="text-red-700 text-lg">You've reached the maximum generation limit this month.</p>
+            <p class="text-red-600 text-sm mt-2">The limit resets at the beginning of the next month.</p>
+            <button id="closeLimitMessageBtn" class="mt-4 bg-red-400 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-500 transition duration-200">
+                Close
+            </button>
+        </div>
+        
+        <div class="mb-6" id="inputSection"> <!-- Added an ID for easy hiding -->
+            <label for="websiteUrl" class="block text-gray-700 text-sm font-medium mb-2">Enter Website URL:</label>
+            <input type="url" id="websiteUrl" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200" placeholder="e.g., https://www.example.com">
+        </div>
+
+        <div id="actionButtons" class="flex flex-col sm:flex-row sm:space-x-4 mb-6">
+            <button id="getInfoBtn" class="w-full sm:w-1/2 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 sm:mb-0 mb-4">
+                Get Website Info
+            </button>
+            <a href="about.html" id="aboutBtn" class="w-full sm:w-1/2 flex items-center justify-center bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-200">
+                About
+            </a>
+        </div>
+
+
+        <div id="loadingIndicator" class="hidden text-center text-blue-600 font-medium mb-4">
+            Loading information...
+        </div>
+
+        <div id="results" class="hidden border border-gray-200 rounded-lg p-6 bg-gray-50">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Results:</h2>
+            
+            <div class="mb-4">
+                <p class="text-gray-700">
+                    <span class="font-medium">Hosting Provider:</span>
+                    <span id="hostingProvider" class="ml-2 text-blue-700 font-mono bg-blue-100 px-2 py-1 rounded-md"></span>
+                </p>
+            </div>
+
+            <div>
+                <p class="text-gray-700 font-medium mb-2">Website Screenshot:</p>
+                <div id="screenshotContainer" class="relative bg-gray-200 rounded-lg overflow-hidden flex items-center justify-center min-h-64 border border-gray-300">
+                    <img id="screenshotImage" class="w-full h-auto rounded-lg hidden" alt="Website Screenshot">
+                    <p id="screenshotPlaceholderText" class="text-gray-500 text-sm p-4 text-center hidden">
+                        Screenshot will appear here.
+                    </p>
+                </div>
+            </div>
+            <!-- New: Search on Trustpilot button -->
+            <button id="searchTrustpilotBtn" class="mt-6 w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200 mb-2">
+                Search on Trustpilot
+            </button>
+            <!-- Original: New Search button -->
+            <button id="newSearchBtn" class="w-full bg-gray-300 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-200">
+                New Search
+            </button>
+        </div>
+
+        <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4" role="alert">
+            <strong class="font-bold">Error!</strong>
+            <span class="block sm:inline" id="errorText"></span>
+            <!-- Add a "Try Again" button for errors -->
+            <button id="tryAgainBtn" class="mt-2 w-full bg-red-200 text-red-800 py-1 rounded-lg font-semibold hover:bg-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200">
+                Try Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const mainTitle = document.getElementById('mainTitle'); 
+            const inputSection = document.getElementById('inputSection'); 
+            const actionButtons = document.getElementById('actionButtons'); 
+            const getInfoBtn = document.getElementById('getInfoBtn');
+            const websiteUrlInput = document.getElementById('websiteUrl');
+            const aboutBtn = document.getElementById('aboutBtn'); 
+
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const resultsDiv = document.getElementById('results');
+            const hostingProviderSpan = document.getElementById('hostingProvider');
+            const screenshotImage = document.getElementById('screenshotImage');
+            const screenshotPlaceholderText = document.getElementById('screenshotPlaceholderText');
+            const errorMessageDiv = document.getElementById('errorMessage');
+            const errorTextSpan = document.getElementById('errorText');
+            const newSearchBtn = document.getElementById('newSearchBtn'); 
+            const tryAgainBtn = document.getElementById('tryAgainBtn'); 
+            const searchTrustpilotBtn = document.getElementById('searchTrustpilotBtn'); 
+            
+            const limitReachedMessage = document.getElementById('limitReachedMessage'); 
+            const closeLimitMessageBtn = document.getElementById('closeLimitMessageBtn'); 
+
+            let lastSearchedUrl = '';
+
+            const whoisXmlApiKey = 'at_upGEcOcy793IfBsXS4qjDz9EHUSg2'; 
+            const screenshotMachineApiKey = '4bde29'; 
+
+            const MAX_GENERATIONS_PER_MONTH = 5; // Changed from 2 to 5
+            const LOCAL_STORAGE_KEY_COUNT = 'generationsUsedThisMonth';
+            const LOCAL_STORAGE_KEY_MONTH = 'lastGenerationResetMonth';
+
+            // Function to display an error message
+            function showErrorMessage(message) {
+                errorTextSpan.textContent = message;
+                errorMessageDiv.classList.remove('hidden');
+            }
+
+            // Function to hide error message
+            function hideErrorMessage() {
+                errorMessageDiv.classList.add('hidden');
+                errorTextSpan.textContent = '';
+            }
+
+            // Function to show the limit reached message and hide other UI
+            function showLimitReachedUI() {
+                mainTitle.classList.add('hidden');
+                inputSection.classList.add('hidden');
+                actionButtons.classList.add('hidden'); 
+                limitReachedMessage.classList.remove('hidden');
+                resultsDiv.classList.add('hidden'); 
+                errorMessageDiv.classList.add('hidden'); 
+            }
+
+            // Function to hide the limit reached message and show initial UI
+            function hideLimitReachedUI() {
+                mainTitle.classList.remove('hidden');
+                inputSection.classList.remove('hidden');
+                actionButtons.classList.remove('hidden'); 
+                limitReachedMessage.classList.add('hidden');
+            }
+
+            // Function to manage the generation limit
+            function checkAndDecrementGenerations() {
+                const today = new Date();
+                const currentMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`; 
+
+                let generationsUsed = parseInt(localStorage.getItem(LOCAL_STORAGE_KEY_COUNT) || '0', 10);
+                let lastResetMonth = localStorage.getItem(LOCAL_STORAGE_KEY_MONTH);
+
+                // If it's a new month, reset the count
+                if (currentMonth !== lastResetMonth) {
+                    generationsUsed = 0;
+                    localStorage.setItem(LOCAL_STORAGE_KEY_MONTH, currentMonth);
+                }
+
+                if (generationsUsed < MAX_GENERATIONS_PER_MONTH) {
+                    generationsUsed++;
+                    localStorage.setItem(LOCAL_STORAGE_KEY_COUNT, generationsUsed.toString());
+                    return true; // Generation allowed
+                } else {
+                    // Generation limit reached
+                    showLimitReachedUI(); 
+                    return false; // Generation not allowed
+                }
+            }
+
+            // Function to reset the UI to initial state
+            function resetUI() {
+                hideLimitReachedUI(); 
+                websiteUrlInput.value = ''; 
+                hostingProviderSpan.textContent = ''; 
+                screenshotImage.src = ''; 
+                screenshotImage.classList.add('hidden');
+                screenshotPlaceholderText.classList.add('hidden'); 
+                lastSearchedUrl = ''; 
+                resultsDiv.classList.add('hidden'); 
+                errorMessageDiv.classList.add('hidden'); 
+            }
+
+            // Initial check for limit when page loads
+            const initialGenerationsUsed = parseInt(localStorage.getItem(LOCAL_STORAGE_KEY_COUNT) || '0', 10);
+            const initialLastResetMonth = localStorage.getItem(LOCAL_STORAGE_KEY_MONTH);
+            const today = new Date();
+            const currentMonth = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
+            
+            if (currentMonth !== initialLastResetMonth) {
+                localStorage.setItem(LOCAL_STORAGE_KEY_COUNT, '0');
+                localStorage.setItem(LOCAL_STORAGE_KEY_MONTH, currentMonth);
+            } else if (initialGenerationsUsed >= MAX_GENERATIONS_PER_MONTH) {
+                showLimitReachedUI();
+            }
+
+
+            getInfoBtn.addEventListener('click', async () => {
+                const url = websiteUrlInput.value.trim();
+                
+                hideErrorMessage(); 
+                resultsDiv.classList.add('hidden'); 
+                screenshotImage.classList.add('hidden'); 
+                screenshotPlaceholderText.classList.add('hidden'); 
+                lastSearchedUrl = ''; 
+
+                if (!url) {
+                    showErrorMessage('Please enter a website URL.');
+                    return;
+                }
+
+                // Check generation limit before proceeding with API calls
+                if (!checkAndDecrementGenerations()) {
+                    // If limit is reached, checkAndDecrementGenerations already shows the message
+                    // We just need to ensure other elements are hidden
+                    mainTitle.classList.add('hidden');
+                    inputSection.classList.add('hidden');
+                    actionButtons.classList.add('hidden');
+                    return; 
+                }
+
+                let domainName;
+                try {
+                    const parsedUrl = new URL(url);
+                    domainName = parsedUrl.hostname; 
+                } catch (e) {
+                    showErrorMessage('Please enter a valid URL (e.g., https://www.example.com).');
+                    return;
+                }
+
+                // Hide input field and buttons once generation is allowed and started
+                mainTitle.classList.add('hidden');
+                inputSection.classList.add('hidden');
+                actionButtons.classList.add('hidden'); 
+                loadingIndicator.classList.remove('hidden'); 
+
+                try {
+                    // --- 1. Fetch Hosting Provider (WHOIS) Data from WhoisXML API ---
+                    const whoisApiUrl = `https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=${whoisXmlApiKey}&domainName=${encodeURIComponent(domainName)}&outputFormat=JSON`;
+                    
+                    const whoisResponse = await fetch(whoisApiUrl);
+                    if (!whoisResponse.ok) {
+                        const errorData = await whoisResponse.json().catch(() => ({}));
+                        throw new Error(`WHOIS API error: ${whoisResponse.status} - ${errorData.messages?.[0]?.text || errorData.messages?.[0] || whoisResponse.statusText}.`);
+                    }
+                    const whoisData = await whoisResponse.json();
+
+                    let hostingProvider = 'N/A';
+                    if (whoisData.WhoisRecord && whoisData.WhoisRecord.registrant && whoisData.WhoisRecord.registrant.organization) {
+                        hostingProvider = whoisData.WhoisRecord.registrant.organization;
+                    } else if (whoisData.WhoisRecord && whoisData.WhoisRecord.registrarName) {
+                        hostingProvider = whoisData.WhoisRecord.registrarName;
+                    }
+                    hostingProviderSpan.textContent = hostingProvider;
+
+                    // --- 2. Fetch Screenshot from ScreenshotMachine API (Fixed size and parameters) ---
+                    const screenshotMachineUrl = `https://api.screenshotmachine.com?key=${screenshotMachineApiKey}&url=${encodeURIComponent(url)}&dimension=2000x1024&format=png&full=false&cacheLimit=0`;
+                    
+                    console.log('ScreenshotMachine API URL:', screenshotMachineUrl);
+
+                    screenshotImage.src = screenshotMachineUrl;
+                    screenshotImage.alt = `Screenshot of ${url}`;
+                    
+                    await new Promise((resolve, reject) => {
+                        screenshotImage.onload = resolve; 
+                        screenshotImage.onerror = () => {
+                            reject(new Error('Failed to load screenshot from ScreenshotMachine. This could be due to an invalid URL, API key issues, or a problem with the ScreenshotMachine service itself.')); 
+                        };
+                    });
+
+                    resultsDiv.classList.remove('hidden'); 
+                    lastSearchedUrl = url; 
+
+                } catch (error) {
+                    console.error('Error fetching website info:', error);
+                    showErrorMessage(`Could not retrieve information: ${error.message || 'An unknown error occurred. Please check your console for details.'}`);
+                    
+                    // Show input field and buttons again on error
+                    mainTitle.classList.remove('hidden');
+                    inputSection.classList.remove('hidden');
+                    actionButtons.classList.remove('hidden'); 
+                    resultsDiv.classList.add('hidden'); 
+                } finally {
+                    loadingIndicator.classList.add('hidden'); 
+                }
+            });
+
+            newSearchBtn.addEventListener('click', resetUI);
+
+            tryAgainBtn.addEventListener('click', () => {
+                hideErrorMessage(); 
+                mainTitle.classList.remove('hidden');
+                inputSection.classList.remove('hidden'); 
+                actionButtons.classList.remove('hidden'); 
+                resultsDiv.classList.add('hidden'); 
+            });
+
+            closeLimitMessageBtn.addEventListener('click', () => {
+                hideLimitReachedUI();
+                resetUI(); 
+            });
+
+            searchTrustpilotBtn.addEventListener('click', () => {
+                if (lastSearchedUrl) {
+                    let cleanUrlForSearch = lastSearchedUrl.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+                    if (cleanUrlForSearch) {
+                        window.open(`https://www.trustpilot.com/search?query=${encodeURIComponent(cleanUrlForSearch)}`, '_blank');
+                    } else {
+                        console.log('No valid domain extracted to search on Trustpilot.');
+                        window.open(`https://www.trustpilot.com/`, '_blank');
+                    }
+                } else {
+                    console.log('No URL available to search on Trustpilot yet.');
+                    window.open(`https://www.trustpilot.com/`, '_blank');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
