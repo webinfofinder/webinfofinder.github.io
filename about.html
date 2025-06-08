@@ -31,6 +31,29 @@
             overflow-x: auto;
             word-break: break-all; /* Ensures long URLs wrap */
         }
+
+        /* Modal Overlay Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            width: 500px;
+            text-align: left;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -89,9 +112,10 @@
             <div class="bg-gray-100 p-4 rounded-lg shadow-sm border border-gray-200">
                 <h3 class="text-xl font-medium text-gray-800 mb-2">Email Service Tester</h3>
                 <p class="text-gray-700 mb-4">Check that you are correctly receiving emails.</p>
-                <a href="https://checkmyemail.github.io/index.html?hidebanner=true&src=https://webinfofinder.github.io/" class="inline-block bg-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-200">
+                <!-- Changed to button to trigger modal -->
+                <button id="goToServiceBtn" class="inline-block bg-green-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-200">
                     Go to Service
-                </a>
+                </button>
             </div>
         </div>
         
@@ -101,5 +125,58 @@
             </a>
         </div>
     </div>
+
+    <!-- The Modal Structure -->
+    <div id="infoModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="modalTitle" class="text-2xl font-bold text-gray-800 mb-4">Notice: Multiple Parameters Present</h2>
+            <div id="modalText" class="text-gray-700 mb-6 leading-relaxed">
+                <!-- Content will be injected here by JavaScript -->
+            </div>
+            <div class="flex justify-end space-x-4">
+                <button id="modalNoBtn" class="bg-gray-300 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-400">No</button>
+                <button id="modalYesBtn" class="bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700">Yes, Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const goToServiceBtn = document.getElementById('goToServiceBtn');
+            const infoModal = document.getElementById('infoModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalText = document.getElementById('modalText');
+            const modalNoBtn = document.getElementById('modalNoBtn');
+            const modalYesBtn = document.getElementById('modalYesBtn');
+
+            const serviceUrl = "https://checkmyemail.github.io/?showwelcome=true&hideconsent=true&hidebanner=true";
+
+            goToServiceBtn.addEventListener('click', () => {
+                const params = [
+                    { name: "showwelcome", description: "shows a short welcome message" },
+                    { name: "hideconsent", description: "agrees to cookies automatically" },
+                    { name: "hidebanner", description: "hides an ad" }
+                ];
+
+                let explanationHtml = "<p class='mb-2'>The link you are about to visit includes the following parameters:</p><ul class='list-disc list-inside space-y-1'>";
+                params.forEach(param => {
+                    explanationHtml += `<li><code>${param.name}=true</code>: ${param.description}.</li>`;
+                });
+                explanationHtml += "</ul><p class='mt-4'>Do you want to continue?</p>";
+                
+                modalText.innerHTML = explanationHtml;
+                infoModal.classList.remove('hidden'); // Show the modal
+            });
+
+            modalNoBtn.addEventListener('click', () => {
+                infoModal.classList.add('hidden'); // Hide the modal
+            });
+
+            modalYesBtn.addEventListener('click', () => {
+                infoModal.classList.add('hidden'); // Hide the modal
+                window.open(serviceUrl, '_blank'); // Open the URL in a new tab
+            });
+        });
+    </script>
 </body>
 </html>
