@@ -1166,15 +1166,29 @@
             embedCodeModal.classList.add('hidden');
         });
 
-        copyEmbedCodeBtn.addEventListener('click', () => {
-            modalEmbedCodeOutput.select();
-            document.execCommand('copy');
-            copyMessage.classList.remove('opacity-0');
-            copyMessage.classList.add('opacity-100');
-            setTimeout(() => {
-                copyMessage.classList.remove('opacity-100');
-                copyMessage.classList.add('opacity-0');
-            }, 2000);
+        copyEmbedCodeBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(modalEmbedCodeOutput.value);
+                copyMessage.textContent = 'Copied to clipboard!';
+                copyMessage.classList.remove('opacity-0', 'text-red-700');
+                copyMessage.classList.add('opacity-100', 'text-green-700');
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                if (err.name === 'NotAllowedError') {
+                    copyMessage.textContent = 'Copy failed: Please allow clipboard access in browser settings.';
+                    copyMessage.classList.remove('opacity-0', 'text-green-700');
+                    copyMessage.classList.add('opacity-100', 'text-red-700');
+                } else {
+                    copyMessage.textContent = 'Failed to copy to clipboard.';
+                    copyMessage.classList.remove('opacity-0', 'text-green-700');
+                    copyMessage.classList.add('opacity-100', 'text-red-700');
+                }
+            } finally {
+                setTimeout(() => {
+                    copyMessage.classList.remove('opacity-100');
+                    copyMessage.classList.add('opacity-0');
+                }, 3000); // Increased timeout for visibility
+            }
             shareMenu.classList.remove('open');
         });
 
