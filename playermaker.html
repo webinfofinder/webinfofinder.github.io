@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Video Player Maker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Basic layout and font styling */
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+        #app-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1rem;
+        }
+        @media (min-width: 768px) {
+            #app-container {
+                padding: 3rem 2rem;
+            }
+        }
+
+        /* Responsive video player wrapper */
+        .responsive-video-wrapper {
+            position: relative;
+            height: 0;
+            overflow: hidden;
+            background-color: black;
+            border-radius: 0.75rem;
+            transition: all 0.3s ease-in-out;
+            width: 100%;
+        }
+        .responsive-video-wrapper video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* Custom controls styling */
+        .custom-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 0.75rem 1rem;
+            display: flex;
+            flex-wrap: wrap; /* Allow controls to wrap */
+            gap: 0.75rem;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 10;
+        }
+        .responsive-video-wrapper:hover .custom-controls,
+        .responsive-video-wrapper.playing .custom-controls {
+            opacity: 1;
+        }
+
+        /* Progress bar styling */
+        .progress-bar-wrapper {
+            flex-grow: 1;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 9999px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background-color: var(--progress-color, #3B82F6);
+            border-radius: 9999px;
+            transition: width 0.1s linear;
+        }
+
+        /* Volume slider styling */
+        .volume-slider {
+            width: 80px;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: #ddd;
+            outline: none;
+            border-radius: 9999px;
+            transition: opacity .2s;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3B82F6;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3B82F6;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.2);
+        }
+
+        /* Share menu dropdown */
+        #shareMenu {
+            display: none;
+        }
+        #shareMenu.open {
+            display: block;
+        }
+
+        /* Global Material Icons styling */
+        .material-icons {
+            font-size: 24px; /* Default size for material icons */
+            vertical-align: middle;
+            display: inline-flex; /* To better center with text */
+            align-items: center;
+            justify-content: center;
+        }
+        /* Style for time spans to allow shrinking */
+        .custom-controls span {
+            min-width: 0; /* Allows flex item to shrink below content size */
+            flex-shrink: 1; /* Allows it to shrink */
+        }
+        /* Specific width for current/duration time to allow overflow ellipse or truncation */
+        #currentTime, #durationTime {
+            width: auto; /* Allow content to dictate initial width */
+            white-space: nowrap; /* Prevent wrapping */
+            overflow: hidden; /* Hide overflow */
+            text-overflow: ellipsis; /* Add ellipsis for overflow */
+            max-width: 56px; /* Max width before ellipsis */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-100 to-gray-300 text-gray-800">
+    <div id="app-container" class="max-w-7xl w-full mx-auto bg-white rounded-2xl shadow-xl my-8 p-8">
+        <h1 class="text-5xl font-extrabold mb-10 text-center text-gray-900 leading-tight">Craft Your Custom Video Player</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+            <div>
+                <div class="p-6 bg-gray-50 rounded-xl border border-gray-200 shadow-sm mb-8">
+                    <h2 class="text-3xl font-bold mb-5 text-gray-800 flex items-center">
+                        <span class="material-icons mr-3 text-blue-600 text-4xl">upload</span>
+                        Upload Your Video
+                    </h2>
+                    <label for="videoUpload" class="block cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg text-center transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                        Choose Video File
+                    </label>
+                    <input type="file" id="videoUpload" accept="video/*" class="hidden">
+                    <p id="fileName" class="mt-4 text-base text-gray-600 text-center">No video selected. Please upload a video file.</p>
+
+                    <h2 class="text-3xl font-bold mt-8 mb-5 text-gray-800 flex items-center">
+                        <span class="material-icons mr-3 text-blue-600 text-4xl">image</span>
+                        Add Thumbnail
+                    </h2>
+                    <label for="thumbnailUpload" class="block cursor-pointer bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg text-center transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                        Choose Thumbnail Image
+                    </label>
+                    <input type="file" id="thumbnailUpload" accept="image/*" class="hidden">
+                    <p id="thumbnailName" class="mt-4 text-base text-gray-600 text-center">No thumbnail selected (optional).</p>
+                </div>
+
+                <div class="p-6 bg-gray-50 rounded-xl border border-gray-200 shadow-sm">
+                    <h2 class="text-3xl font-bold mb-5 text-gray-800 flex items-center">
+                        <span class="material-icons mr-3 text-blue-600 text-4xl">settings</span>
+                        Customize Your Player
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <div>
+                            <label for="playerWidth" class="block text-lg font-medium text-gray-700 mb-2">Width (px):</label>
+                            <input type="number" id="playerWidth" value="640" min="100" class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg transition duration-150 ease-in-out">
+                        </div>
+                        <div>
+                            <label for="playerHeight" class="block text-lg font-medium text-gray-700 mb-2">Height (px):</label>
+                            <input type="number" id="playerHeight" value="360" min="100" class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg transition duration-150 ease-in-out">
+                        </div>
+                        <div>
+                            <label for="playerBorderRadius" class="block text-lg font-medium text-gray-700 mb-2">Border Radius (px):</label>
+                            <input type="number" id="playerBorderRadius" value="12" min="0" max="50" class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg transition duration-150 ease-in-out">
+                        </div>
+                        <div>
+                            <label for="aspectRatio" class="block text-lg font-medium text-gray-700 mb-2">Aspect Ratio:</label>
+                            <select id="aspectRatio" class="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg transition duration-150 ease-in-out">
+                                <option value="custom">Custom</option>
+                                <option value="16:9" selected>16:9 (Widescreen)</option>
+                                <option value="4:3">4:3 (Standard)</option>
+                                <option value="1:1">1:1 (Square)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <div>
+                            <label for="progressBarColor" class="block text-lg font-medium text-gray-700 mb-2">Progress Bar Color:</label>
+                            <input type="color" id="progressBarColor" value="#3B82F6" class="w-full h-14 p-1 border border-gray-300 rounded-lg shadow-sm cursor-pointer">
+                        </div>
+                        <div>
+                            <label for="controlsBackgroundColor" class="block text-lg font-medium text-gray-700 mb-2">Controls Background Color:</label>
+                            <input type="color" id="controlsBackgroundColor" value="#000000" class="w-full h-14 p-1 border border-gray-300 rounded-lg shadow-sm cursor-pointer">
+                            <p class="text-sm text-gray-500 mt-2">Note: Opacity (85%) is fixed for readability in embed code.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="autoplay" class="h-6 w-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transform scale-125">
+                            <label for="autoplay" class="ml-3 block text-base font-medium text-gray-700">Autoplay</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="loop" class="h-6 w-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transform scale-125">
+                            <label for="loop" class="ml-3 block text-base font-medium text-gray-700">Loop</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="muted" class="h-6 w-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transform scale-125">
+                            <label for="muted" class="ml-3 block text-base font-medium text-gray-700">Muted</label>
+                        </div>
+                    </div>
+
+                    <h3 class="text-2xl font-bold mt-8 mb-4 text-gray-800 flex items-center">
+                        <span class="material-icons mr-2 text-blue-600 text-3xl">tune</span>
+                        Disable Controls
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="disableRewind" class="h-6 w-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transform scale-125">
+                            <label for="disableRewind" class="ml-3 block text-base font-medium text-gray-700">Rewind</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="disableForward" class="h-6 w-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transform scale-125">
+                            <label for="disableForward" class="ml-3 block text-base font-medium text-gray-700">Forward</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="disableVolume" class="h-6 w-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transform scale-125">
+                            <label for="disableVolume" class="ml-3 block text-base font-medium text-gray-700">Volume</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="disablePlaybackSpeed" class="h-6 w-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transform scale-125">
+                            <label for="disablePlaybackSpeed" class="ml-3 block text-base font-medium text-gray-700">Playback Speed</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="disablePip" class="h-6 w-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transform scale-125">
+                            <label for="disablePip" class="ml-3 block text-base font-medium text-gray-700">Picture-in-Picture</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="disableFullscreen" class="h-6 w-6 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transform scale-125">
+                            <label for="disableFullscreen" class="ml-3 block text-base font-medium text-gray-700">Fullscreen</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="p-6 bg-gray-50 rounded-xl border border-gray-200 shadow-sm">
+                    <h2 class="text-3xl font-bold mb-5 text-gray-800 flex items-center">
+                        <span class="material-icons mr-3 text-blue-600 text-4xl">play_circle</span>
+                        Player Preview
+                    </h2>
+                    <div id="playerPreviewContainer" class="flex justify-center items-center bg-gray-100 rounded-xl shadow-inner overflow-hidden border border-gray-300 mb-6 p-4 w-full">
+                        <div id="customVideoPlayer" class="relative shadow-xl transform hover:scale-105 transition-transform duration-300 ease-in-out responsive-video-wrapper">
+                            <video id="videoElement" class="w-full h-full object-contain cursor-pointer">
+                                Your browser does not support the video tag.
+                            </video>
+
+                            <!-- Big Play Button Overlay -->
+                            <div id="bigPlayBtnOverlay" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 cursor-pointer transition-opacity duration-300 z-20">
+                                <span class="material-icons text-white opacity-90 hover:opacity-100 transition-opacity text-9xl">play_circle</span>
+                            </div>
+
+                            <div class="custom-controls text-white text-lg rounded-b-xl">
+                                <button id="playPauseBtn" class="flex items-center justify-center p-3 rounded-full bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-150 ease-in-out">
+                                    <span id="playIcon" class="material-icons text-3xl">play_arrow</span>
+                                    <span id="pauseIcon" class="material-icons text-3xl hidden">pause</span>
+                                </button>
+
+                                <button id="rewindBtn" class="flex items-center justify-center p-3 rounded-full bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-150 ease-in-out">
+                                    <span class="material-icons text-3xl">replay_10</span>
+                                </button>
+                                <button id="forwardBtn" class="flex items-center justify-center p-3 rounded-full bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-150 ease-in-out">
+                                    <span class="material-icons text-3xl">forward_10</span>
+                                </button>
+
+                                <div class="progress-bar-wrapper">
+                                    <div class="progress-bar-fill"></div>
+                                </div>
+
+                                <span id="currentTime" class="text-base font-semibold text-gray-200 text-right">00:00</span> <span class="text-base text-gray-400">/</span> <span id="durationTime" class="text-base font-semibold text-gray-200 text-left">00:00</span>
+
+                                <button id="muteUnmuteBtn" class="flex items-center justify-center p-3 rounded-full bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-150 ease-in-out">
+                                    <span id="volumeUpIcon" class="material-icons text-3xl">volume_up</span>
+                                    <span id="volumeMuteIcon" class="material-icons text-3xl hidden">volume_off</span>
+                                </button>
+
+                                <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" class="volume-slider">
+                                
+                                <select id="playbackSpeedSelect" class="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-150 ease-in-out text-base">
+                                    <option value="0.5">0.5x</option>
+                                    <option value="0.75">0.75x</option>
+                                    <option value="1" selected>1x</option>
+                                    <option value="1.25">1.25x</option>
+                                    <option value="1.5">1.5x</option>
+                                    <option value="2">2x</option>
+                                </select>
+
+                                <button id="pipBtn" class="flex items-center justify-center p-3 rounded-full bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-150 ease-in-out">
+                                    <span class="material-icons text-3xl">picture_in_picture_alt</span>
+                                </button>
+
+                                <button id="fullscreenBtn" class="flex items-center justify-center p-3 rounded-full bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-150 ease-in-out">
+                                    <span class="material-icons text-3xl">fullscreen</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative inline-block text-left w-full">
+                        <button id="shareBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75 flex items-center justify-center">
+                            <span class="material-icons mr-2">share</span>
+                            Share Player
+                        </button>
+
+                        <div id="shareMenu" class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+                            <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                                <button id="viewEmbedCodeBtn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md" role="menuitem">View Embed Code</button>
+                                <button id="copyEmbedCodeBtn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md" role="menuitem">Copy Embed Code</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="copyMessage" class="mt-3 text-base text-center text-green-700 opacity-0 transition-opacity duration-300 font-medium">Copied to clipboard!</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="embedCodeModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg p-6 shadow-xl max-w-2xl w-full">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">Your Embed Code</h3>
+                <textarea id="modalEmbedCodeOutput" rows="10" readonly class="w-full p-4 border border-gray-300 rounded-lg bg-gray-100 font-mono text-base resize-y focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                <div class="mt-4 flex justify-end">
+                    <button id="closeModalBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">Close</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const videoUpload = document.getElementById('videoUpload');
+        const fileNameSpan = document.getElementById('fileName');
+        const thumbnailUpload = document.getElementById('thumbnailUpload');
+        const thumbnailNameSpan = document.getElementById('thumbnailName');
+        const videoElement = document.getElementById('videoElement');
+        const customVideoPlayer = document.getElementById('customVideoPlayer');
+        const playerPreviewContainer = document.getElementById('playerPreviewContainer');
+        const bigPlayBtnOverlay = document.getElementById('bigPlayBtnOverlay');
+        const customControls = document.querySelector('.custom-controls');
+
+
+        const playerWidthInput = document.getElementById('playerWidth');
+        const playerHeightInput = document.getElementById('playerHeight');
+        const playerBorderRadiusInput = document.getElementById('playerBorderRadius');
+        const aspectRatioSelect = document.getElementById('aspectRatio');
+        const progressBarColorInput = document.getElementById('progressBarColor');
+        const controlsBackgroundColorInput = document.getElementById('controlsBackgroundColor');
+        const autoplayCheckbox = document.getElementById('autoplay');
+        const loopCheckbox = document.getElementById('loop');
+        const mutedCheckbox = document.getElementById('muted');
+        const playbackSpeedSelect = document.getElementById('playbackSpeedSelect');
+
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const rewindBtn = document.getElementById('rewindBtn');
+        const forwardBtn = document.getElementById('forwardBtn');
+        const progressBarFill = document.querySelector('.progress-bar-fill');
+        const progressBarWrapper = document.querySelector('.progress-bar-wrapper');
+        const currentTimeSpan = document.getElementById('currentTime');
+        const durationTimeSpan = document.getElementById('durationTime');
+        const muteUnmuteBtn = document.getElementById('muteUnmuteBtn');
+        const volumeUpIcon = document.getElementById('volumeUpIcon');
+        const volumeMuteIcon = document.getElementById('volumeMuteIcon');
+        const volumeSlider = document.getElementById('volumeSlider');
+        
+        const pipBtn = document.getElementById('pipBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+        // New disable control checkboxes
+        const disableRewindCheckbox = document.getElementById('disableRewind');
+        const disableForwardCheckbox = document.getElementById('disableForward');
+        const disableVolumeCheckbox = document.getElementById('disableVolume');
+        const disablePlaybackSpeedCheckbox = document.getElementById('disablePlaybackSpeed');
+        const disablePipCheckbox = document.getElementById('disablePip');
+        const disableFullscreenCheckbox = document.getElementById('disableFullscreen');
+
+
+        const shareBtn = document.getElementById('shareBtn');
+        const shareMenu = document.getElementById('shareMenu');
+        const viewEmbedCodeBtn = document.getElementById('viewEmbedCodeBtn');
+        const copyEmbedCodeBtn = document.getElementById('copyEmbedCodeBtn');
+        const copyMessage = document.getElementById('copyMessage');
+        const embedCodeModal = document.getElementById('embedCodeModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalEmbedCodeOutput = document.getElementById('modalEmbedCodeOutput');
+
+        let videoSrc = '';
+        let thumbnailSrc = '';
+        const SEEK_TIME = 10;
+        let isVideoPlayedFirstTime = false;
+
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes < 10 ? '0' : ''}${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        /* --- UI Logic for Main Player --- */
+
+        function updateControlVisibility() {
+            // Main play button visible -> hide controls
+            if (bigPlayBtnOverlay.classList.contains('hidden')) {
+                customControls.style.display = 'flex';
+                // Apply individual control visibility based on disable checkboxes
+                rewindBtn.style.display = disableRewindCheckbox.checked ? 'none' : 'flex';
+                forwardBtn.style.display = disableForwardCheckbox.checked ? 'none' : 'flex';
+                muteUnmuteBtn.style.display = disableVolumeCheckbox.checked ? 'none' : 'flex';
+                volumeSlider.style.display = disableVolumeCheckbox.checked ? 'none' : 'block';
+                playbackSpeedSelect.style.display = disablePlaybackSpeedCheckbox.checked ? 'none' : 'block';
+                pipBtn.style.display = disablePipCheckbox.checked ? 'none' : 'flex';
+                fullscreenBtn.style.display = disableFullscreenCheckbox.checked ? 'none' : 'flex';
+
+            } else {
+                // Main play button visible -> hide all controls
+                customControls.style.display = 'none';
+            }
+        }
+
+        videoUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                fileNameSpan.textContent = `Selected: ${file.name}`;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    videoSrc = e.target.result;
+                    videoElement.src = videoSrc;
+                    videoElement.load();
+                    isVideoPlayedFirstTime = false; // Reset for new video upload
+                    if (autoplayCheckbox.checked) {
+                        videoElement.autoplay = true;
+                        videoElement.play();
+                    }
+                    updateControlVisibility(); // Update visibility based on autoplay
+                    updateEmbedCode();
+                };
+                reader.readAsDataURL(file);
+            } else {
+                fileNameSpan.textContent = 'No video selected. Please upload a video file.';
+                videoSrc = '';
+                videoElement.src = '';
+                isVideoPlayedFirstTime = false;
+                videoElement.removeAttribute('poster'); // Remove poster if video removed
+                updateControlVisibility(); // Update visibility
+                updateEmbedCode();
+            }
+        });
+
+        thumbnailUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                thumbnailNameSpan.textContent = `Selected: ${file.name}`;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    thumbnailSrc = e.target.result;
+                    videoElement.poster = thumbnailSrc;
+                    updateEmbedCode();
+                };
+                reader.readAsDataURL(file);
+            } else {
+                thumbnailNameSpan.textContent = 'No thumbnail selected (optional).';
+                thumbnailSrc = '';
+                videoElement.removeAttribute('poster'); // Remove poster if thumbnail removed
+                updateEmbedCode();
+            }
+        });
+
+        // Event listener for the big play button overlay
+        bigPlayBtnOverlay.addEventListener('click', () => {
+            if (videoElement.paused) {
+                videoElement.play();
+            }
+        });
+
+        playPauseBtn.addEventListener('click', () => {
+            if (videoElement.paused) {
+                videoElement.play();
+            } else {
+                videoElement.pause();
+            }
+        });
+
+        rewindBtn.addEventListener('click', () => {
+            videoElement.currentTime -= SEEK_TIME;
+        });
+
+        forwardBtn.addEventListener('click', () => {
+            videoElement.currentTime += SEEK_TIME;
+        });
+
+        videoElement.addEventListener('play', () => {
+            playIcon.classList.add('hidden');
+            pauseIcon.classList.remove('hidden');
+            customVideoPlayer.classList.add('playing');
+            bigPlayBtnOverlay.classList.add('hidden');
+            isVideoPlayedFirstTime = true;
+            updateControlVisibility(); // Show controls when playing
+        });
+
+        videoElement.addEventListener('pause', () => {
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+            customVideoPlayer.classList.remove('playing');
+            // Only show big play button if it's the very first pause after load or if video is at the beginning.
+            if (!isVideoPlayedFirstTime || videoElement.currentTime === 0) {
+                bigPlayBtnOverlay.classList.remove('hidden');
+            }
+            updateControlVisibility(); // Hide controls if big play button is shown on pause
+        });
+
+        videoElement.addEventListener('timeupdate', () => {
+            const progress = (videoElement.currentTime / videoElement.duration) * 100;
+            progressBarFill.style.width = `${progress}%`;
+            currentTimeSpan.textContent = formatTime(videoElement.currentTime);
+        });
+
+        videoElement.addEventListener('loadedmetadata', () => {
+            durationTimeSpan.textContent = formatTime(videoElement.duration);
+            videoElement.muted = mutedCheckbox.checked;
+            updateMuteIcon();
+             // If autoplay is checked and a video is loaded, hide the big play button
+            if (autoplayCheckbox.checked && videoSrc) {
+                bigPlayBtnOverlay.classList.add('hidden');
+                videoElement.play(); // Ensure autoplay is triggered
+            } else {
+                bigPlayBtnOverlay.classList.remove('hidden'); // Show big play button if not autoplay
+            }
+            updateControlVisibility(); // Set initial control visibility
+        });
+
+        progressBarWrapper.addEventListener('click', (e) => {
+            const rect = progressBarWrapper.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const percentage = clickX / rect.width;
+            videoElement.currentTime = videoElement.duration * percentage;
+        });
+
+        muteUnmuteBtn.addEventListener('click', () => {
+            videoElement.muted = !videoElement.muted;
+            updateMuteIcon();
+        });
+
+        volumeSlider.addEventListener('input', () => {
+            videoElement.volume = volumeSlider.value;
+            videoElement.muted = (volumeSlider.value === '0');
+            updateMuteIcon();
+        });
+
+        videoElement.addEventListener('volumechange', () => {
+            volumeSlider.value = videoElement.volume;
+            updateMuteIcon();
+        });
+
+        function updateMuteIcon() {
+            if (videoElement.muted || videoElement.volume === 0) {
+                volumeUpIcon.classList.add('hidden');
+                volumeMuteIcon.classList.remove('hidden');
+            } else {
+                volumeUpIcon.classList.remove('hidden');
+                volumeMuteIcon.classList.add('hidden');
+            }
+            mutedCheckbox.checked = videoElement.muted;
+            updateEmbedCode();
+        }
+
+        pipBtn.addEventListener('click', () => {
+            if (document.pictureInPictureElement) {
+                document.exitPictureInPicture()
+                    .catch(error => console.error('Failed to exit Picture-in-Picture:', error));
+            } else if (videoElement.requestPictureInPicture) {
+                videoElement.requestPictureInPicture()
+                    .catch(error => console.error('Failed to enter Picture-in-Picture:', error));
+            } else {
+                console.log('Picture-in-Picture not supported by your browser.');
+            }
+        });
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (customVideoPlayer.requestFullscreen) {
+                customVideoPlayer.requestFullscreen();
+            } else if (customVideoPlayer.mozRequestFullScreen) {
+                customVideoPlayer.mozRequestFullScreen();
+            } else if (customVideoPlayer.webkitRequestFullscreen) {
+                customVideoPlayer.webkitRequestFullscreen();
+            } else if (customVideoPlayer.msRequestFullscreen) {
+                customVideoPlayer.msRequestFullscreen();
+            }
+        });
+
+        function applyPlayerStyles() {
+            const width = playerWidthInput.value;
+            const height = playerHeightInput.value;
+            const borderRadius = playerBorderRadiusInput.value + 'px';
+            const progressBarColor = progressBarColorInput.value;
+            const controlsBgColor = controlsBackgroundColorInput.value;
+
+            customVideoPlayer.style.maxWidth = width + 'px';
+            customVideoPlayer.style.borderRadius = borderRadius;
+            customVideoPlayer.style.setProperty('--progress-color', progressBarColor);
+            document.querySelector('.custom-controls').style.backgroundColor = `${controlsBgColor}D9`;
+            videoElement.style.borderRadius = borderRadius;
+
+            const aspectRatioValue = aspectRatioSelect.value;
+            if (aspectRatioValue === '16:9') {
+                customVideoPlayer.style.paddingBottom = (9 / 16) * 100 + '%';
+                customVideoPlayer.style.height = '0';
+            } else if (aspectRatioValue === '4:3') {
+                customVideoPlayer.style.paddingBottom = (3 / 4) * 100 + '%';
+                customVideoPlayer.style.height = '0';
+            } else if (aspectRatioValue === '1:1') {
+                customVideoPlayer.style.paddingBottom = 100 + '%';
+                customVideoPlayer.style.height = '0';
+            } else {
+                customVideoPlayer.style.height = height + 'px';
+                customVideoPlayer.style.paddingBottom = '0';
+            }
+        }
+
+        function applyPlayerBehaviors() {
+            videoElement.autoplay = autoplayCheckbox.checked;
+            videoElement.loop = loopCheckbox.checked;
+            videoElement.muted = mutedCheckbox.checked;
+            videoElement.playbackRate = parseFloat(playbackSpeedSelect.value);
+            updateMuteIcon();
+            updateControlVisibility(); // Ensure control visibility is correct after behavior changes
+        }
+
+        function updateDimensionsForAspectRatio() {
+            const aspectRatio = aspectRatioSelect.value;
+            const currentWidth = parseInt(playerWidthInput.value);
+
+            if (aspectRatio === '16:9') {
+                playerHeightInput.value = Math.round(currentWidth * (9 / 16));
+            } else if (aspectRatio === '4:3') {
+                playerHeightInput.value = Math.round(currentWidth * (3 / 4));
+            } else if (aspectRatio === '1:1') {
+                playerHeightInput.value = currentWidth;
+            }
+            applyPlayerStyles();
+            updateEmbedCode();
+        }
+
+        playerWidthInput.addEventListener('input', () => {
+            if (aspectRatioSelect.value !== 'custom') {
+                updateDimensionsForAspectRatio();
+            } else {
+                applyPlayerStyles();
+                updateEmbedCode();
+            }
+        });
+        playerHeightInput.addEventListener('input', () => {
+            aspectRatioSelect.value = 'custom';
+            applyPlayerStyles();
+            updateEmbedCode();
+        });
+        playerBorderRadiusInput.addEventListener('input', () => {
+            applyPlayerStyles();
+            updateEmbedCode();
+        });
+        aspectRatioSelect.addEventListener('change', () => {
+            updateDimensionsForAspectRatio();
+        });
+        progressBarColorInput.addEventListener('input', () => {
+            applyPlayerStyles();
+            updateEmbedCode();
+        });
+        controlsBackgroundColorInput.addEventListener('input', () => {
+            applyPlayerStyles();
+            updateEmbedCode();
+        });
+        autoplayCheckbox.addEventListener('change', () => {
+            applyPlayerBehaviors();
+            updateEmbedCode();
+        });
+        loopCheckbox.addEventListener('change', () => {
+            applyPlayerBehaviors();
+            updateEmbedCode();
+        });
+        mutedCheckbox.addEventListener('change', () => {
+            applyPlayerBehaviors();
+            updateEmbedCode();
+        });
+        playbackSpeedSelect.addEventListener('change', () => { // Event listener for the actual select element
+            applyPlayerBehaviors();
+            updateEmbedCode();
+        });
+
+        // Event listeners for new disable checkboxes
+        disableRewindCheckbox.addEventListener('change', updateControlVisibility);
+        disableForwardCheckbox.addEventListener('change', updateControlVisibility);
+        disableVolumeCheckbox.addEventListener('change', updateControlVisibility);
+        disablePlaybackSpeedCheckbox.addEventListener('change', updateControlVisibility);
+        disablePipCheckbox.addEventListener('change', updateControlVisibility);
+        disableFullscreenCheckbox.addEventListener('change', updateControlVisibility);
+
+        /* --- Embed Code Generation Logic --- */
+
+        function updateEmbedCode() {
+            const width = playerWidthInput.value;
+            const height = playerHeightInput.value;
+            const borderRadius = playerBorderRadiusInput.value;
+            const autoplayAttr = autoplayCheckbox.checked ? 'autoplay' : '';
+            const loopAttr = loopCheckbox.checked ? 'loop' : '';
+            const mutedAttr = mutedCheckbox.checked ? 'muted' : '';
+            const initialOverlayDisplay = (autoplayCheckbox.checked && videoSrc) ? 'none' : 'flex';
+            const controlsDisplay = (autoplayCheckbox.checked && videoSrc) ? 'flex' : 'none';
+            const progressBarColor = progressBarColorInput.value;
+            const posterAttr = thumbnailSrc ? `poster="${thumbnailSrc}"` : '';
+            const initialPlaybackSpeed = playbackSpeedSelect.value;
+            const controlsBgColorValue = controlsBackgroundColorInput.value;
+
+            // Get disable states for embed code
+            const embedDisableRewind = disableRewindCheckbox.checked ? 'none' : 'flex';
+            const embedDisableForward = disableForwardCheckbox.checked ? 'none' : 'flex';
+            const embedDisableVolumeBtn = disableVolumeCheckbox.checked ? 'none' : 'flex';
+            const embedDisableVolumeSlider = disableVolumeCheckbox.checked ? 'none' : 'block';
+            const embedDisablePlaybackSpeed = disablePlaybackSpeedCheckbox.checked ? 'none' : 'block';
+            const embedDisablePip = disablePipCheckbox.checked ? 'none' : 'flex';
+            const embedDisableFullscreen = disableFullscreenCheckbox.checked ? 'none' : 'flex';
+
+
+            // The escaped backticks (\\`) and closing script tag (<\/script>) are crucial for proper embedding
+            const embedCode = `
+<div style="
+    width: ${width}px;
+    height: ${height}px;
+    position: relative;
+    background-color: black;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: ${borderRadius}px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+">
+    <video class="embedded-video" src="${videoSrc}" ${autoplayAttr} ${loopAttr} ${mutedAttr} ${posterAttr} style="
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: ${borderRadius}px;
+    ">
+        Your browser does not support the video tag.
+    </video>
+
+    <!-- Big Play Button Overlay for embedded player -->
+    <div class="big-play-btn-overlay-embed" style="
+        position: absolute;
+        inset: 0;
+        display: ${initialOverlayDisplay}; /* Controlled by JS based on autoplay */
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0, 0, 0, 0.5);
+        cursor: pointer;
+        transition: opacity 0.3s ease;
+        z-index: 20;
+    ">
+        <span class="material-icons" style="font-size: 96px; color: white; opacity: 0.9; transition: opacity;">play_circle</span>
+    </div>
+
+    <!-- Custom Controls for embedded player -->
+    <div class="custom-controls-embed" style="
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: ${controlsBgColorValue}D9; /* Use the actual value */
+        padding: 0.75rem 1rem;
+        display: ${initialOverlayDisplay === 'flex' ? 'none' : 'flex'}; /* Initially hidden if big play button is visible */
+        flex-wrap: wrap; /* Allow controls to wrap */
+        gap: 0.75rem;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 10;
+    ">
+        <button class="control-btn play-pause-btn-embed" data-action="playPause" style="display: flex; align-items: center; justify-content: center; padding: 0.75rem; border-radius: 9999px; background-color: #3B82F6; transition: all 0.15s ease-in-out;">
+            <span class="material-icons play-icon-embed" style="font-size: 28px;">play_arrow</span>
+            <span class="material-icons pause-icon-embed" style="font-size: 28px; display: none;">pause</span>
+        </button>
+
+        <button class="control-btn" data-action="rewind" style="display: ${embedDisableRewind}; align-items: center; justify-content: center; padding: 0.75rem; border-radius: 9999px; background-color: #3B82F6; transition: all 0.15s ease-in-out;">
+            <span class="material-icons" style="font-size: 28px;">replay_10</span>
+        </button>
+        <button class="control-btn" data-action="forward" style="display: ${embedDisableForward}; align-items: center; justify-content: center; padding: 0.75rem; border-radius: 9999px; background-color: #3B82F6; transition: all 0.15s ease-in-out;">
+            <span class="material-icons" style="font-size: 28px;">forward_10</span>
+        </button>
+
+        <div class="progress-bar-wrapper-embed" style="flex-grow: 1; height: 10px; background-color: rgba(255, 255, 255, 0.3); border-radius: 9999px; cursor: pointer; position: relative; overflow: hidden;">
+            <div class="progress-bar-fill-embed" style="height: 100%; width: 0%; background-color: ${progressBarColor}; border-radius: 9999px;"></div>
+        </div>
+
+        <span class="current-time-embed" style="font-size: 1rem; font-weight: 600; color: #e5e7eb; min-width: 0; flex-shrink: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; text-align: right;">00:00</span> <span style="font-size: 1rem; color: #9ca3af;">/</span> <span class="duration-time-embed" style="font-size: 1rem; font-weight: 600; color: #e5e7eb; min-width: 0; flex-shrink: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; text-align: left;">00:00</span>
+
+        <button class="control-btn mute-unmute-btn-embed" data-action="muteUnmute" style="display: ${embedDisableVolumeBtn}; align-items: center; justify-content: center; padding: 0.75rem; border-radius: 9999px; background-color: #3B82F6; transition: all 0.15s ease-in-out;">
+            <span class="material-icons volume-up-icon-embed" style="font-size: 28px;">volume_up</span>
+            <span class="material-icons volume-mute-icon-embed" style="font-size: 28px; display: none;">volume_off</span>
+        </button>
+
+        <input type="range" class="volume-slider-embed" min="0" max="1" step="0.01" value="${videoElement.volume}" style="width: 80px; cursor: pointer; -webkit-appearance: none; appearance: none; height: 6px; background: #ddd; outline: none; border-radius: 9999px; transition: opacity .2s; display: ${embedDisableVolumeSlider};">
+
+        <select class="playback-speed-select-embed" style="padding: 0.5rem; background-color: #3B82F6; color: white; border-radius: 9999px; outline: none; border: none; font-size: 1rem; cursor: pointer; display: ${embedDisablePlaybackSpeed};">
+            <option value="0.5" ${initialPlaybackSpeed == '0.5' ? 'selected' : ''}>0.5x</option>
+            <option value="0.75" ${initialPlaybackSpeed == '0.75' ? 'selected' : ''}>0.75x</option>
+            <option value="1" ${initialPlaybackSpeed == '1' ? 'selected' : ''}>1x</option>
+            <option value="1.25" ${initialPlaybackSpeed == '1.25' ? 'selected' : ''}>1.25x</option>
+            <option value="1.5" ${initialPlaybackSpeed == '1.5' ? 'selected' : ''}>1.5x</option>
+            <option value="2" ${initialPlaybackSpeed == '2' ? 'selected' : ''}>2x</option>
+        </select>
+
+        <button class="control-btn" data-action="pip" style="display: ${embedDisablePip}; align-items: center; justify-content: center; padding: 0.75rem; border-radius: 9999px; background-color: #3B82F6; transition: all 0.15s ease-in-out;">
+            <span class="material-icons" style="font-size: 28px;">picture_in_picture_alt</span>
+        </button>
+
+        <button class="control-btn" data-action="fullscreen" style="display: ${embedDisableFullscreen}; align-items: center; justify-content: center; padding: 0.75rem; border-radius: 9999px; background-color: #3B82F6; transition: all 0.15s ease-in-out;">
+            <span class="material-icons" style="font-size: 28px;">fullscreen</span>
+        </button>
+    </div>
+</div>
+<script>
+    // Load Material Icons stylesheet for the embedded player
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Correctly select the main container for the embedded player
+        const embeddedPlayerContainer = document.querySelector('div[style*="position: relative"][style*="width:"][style*="height:"]');
+        const videoElementEmbed = embeddedPlayerContainer ? embeddedPlayerContainer.querySelector('.embedded-video') : null;
+        const bigPlayBtnOverlayEmbed = embeddedPlayerContainer ? embeddedPlayerContainer.querySelector('.big-play-btn-overlay-embed') : null;
+        const customControlsEmbed = embeddedPlayerContainer ? embeddedPlayerContainer.querySelector('.custom-controls-embed') : null;
+
+        const playPauseBtnEmbed = customControlsEmbed ? customControlsEmbed.querySelector('.play-pause-btn-embed') : null;
+        const playIconEmbed = playPauseBtnEmbed ? playPauseBtnEmbed.querySelector('.play-icon-embed') : null;
+        const pauseIconEmbed = playPauseBtnEmbed ? playPauseBtnEmbed.querySelector('.pause-icon-embed') : null;
+
+        const progressBarFillEmbed = customControlsEmbed ? customControlsEmbed.querySelector('.progress-bar-fill-embed') : null;
+        const progressBarWrapperEmbed = customControlsEmbed ? customControlsEmbed.querySelector('.progress-bar-wrapper-embed') : null;
+        const currentTimeSpanEmbed = customControlsEmbed ? customControlsEmbed.querySelector('.current-time-embed') : null;
+        const durationTimeSpanEmbed = customControlsEmbed ? customControlsEmbed.querySelector('.duration-time-embed') : null;
+
+        const muteUnmuteBtnEmbed = customControlsEmbed ? customControlsEmbed.querySelector('.mute-unmute-btn-embed') : null;
+        const volumeUpIconEmbed = muteUnmuteBtnEmbed ? muteUnmuteBtnEmbed.querySelector('.volume-up-icon-embed') : null;
+        const volumeMuteIconEmbed = muteUnmuteBtnEmbed ? muteUnmuteBtnEmbed.querySelector('.volume-mute-icon-embed') : null;
+        const volumeSliderEmbed = customControlsEmbed ? customControlsEmbed.querySelector('.volume-slider-embed') : null;
+        
+        const playbackSpeedSelectEmbed = customControlsEmbed ? customControlsEmbed.querySelector('.playback-speed-select-embed') : null;
+        const pipBtnEmbed = customControlsEmbed ? customControlsEmbed.querySelector('[data-action="pip"]') : null;
+        const fullscreenBtnEmbed = customControlsEmbed ? customControlsEmbed.querySelector('[data-action="fullscreen"]') : null;
+        const rewindBtnEmbed = customControlsEmbed ? customControlsEmbed.querySelector('[data-action="rewind"]') : null;
+        const forwardBtnEmbed = customControlsEmbed ? customControlsEmbed.querySelector('[data-action="forward"]') : null;
+
+
+        const SEEK_TIME_EMBED = 10;
+        let isVideoPlayedFirstTimeEmbed = false;
+
+        function formatTimeEmbed(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return \`\${minutes < 10 ? '0' : ''}\${minutes}:\${secs < 10 ? '0' : ''}\${secs}\`;
+        }
+
+        // Function to update visibility of controls and big play button in embedded player
+        function updateControlVisibilityEmbed() {
+            if (!videoElementEmbed || !bigPlayBtnOverlayEmbed || !customControlsEmbed) return;
+
+            if (bigPlayBtnOverlayEmbed.style.display === 'flex') {
+                customControlsEmbed.style.display = 'none';
+            } else {
+                customControlsEmbed.style.display = 'flex';
+                // Apply individual control visibility based on initial embed code styles
+                // This means the 'display' property set inline on the elements will dictate their visibility.
+                // We just ensure the overall controls container is visible.
+            }
+        }
+
+        if (videoElementEmbed) {
+            videoElementEmbed.addEventListener('loadedmetadata', () => {
+                if (durationTimeSpanEmbed) durationTimeSpanEmbed.textContent = formatTimeEmbed(videoElementEmbed.duration);
+                // Initial visibility check
+                if (videoElementEmbed.autoplay) {
+                    if (bigPlayBtnOverlayEmbed) bigPlayBtnOverlayEmbed.style.display = 'none';
+                } else {
+                    if (bigPlayBtnOverlayEmbed) bigPlayBtnOverlayEmbed.style.display = 'flex';
+                }
+                updateMuteIconEmbed();
+                if (playbackSpeedSelectEmbed) playbackSpeedSelectEmbed.value = videoElementEmbed.playbackRate;
+                updateControlVisibilityEmbed(); // Call on metadata load
+            });
+
+            videoElementEmbed.addEventListener('timeupdate', () => {
+                if (progressBarFillEmbed && videoElementEmbed.duration) {
+                    const progress = (videoElementEmbed.currentTime / videoElementEmbed.duration) * 100;
+                    progressBarFillEmbed.style.width = \`\${progress}%\`;
+                }
+                if (currentTimeSpanEmbed) currentTimeSpanEmbed.textContent = formatTimeEmbed(videoElementEmbed.currentTime);
+            });
+
+            videoElementEmbed.addEventListener('play', () => {
+                if (playIconEmbed) playIconEmbed.style.display = 'none';
+                if (pauseIconEmbed) pauseIconEmbed.style.display = 'block';
+                if (bigPlayBtnOverlayEmbed) bigPlayBtnOverlayEmbed.style.display = 'none';
+                isVideoPlayedFirstTimeEmbed = true;
+                updateControlVisibilityEmbed(); // Show controls when playing
+            });
+
+            videoElementEmbed.addEventListener('pause', () => {
+                if (playIconEmbed) playIconEmbed.style.display = 'block';
+                if (pauseIconEmbed) pauseIconEmbed.style.display = 'none';
+                if (!isVideoPlayedFirstTimeEmbed || videoElementEmbed.currentTime === 0) {
+                     if (bigPlayBtnOverlayEmbed) bigPlayBtnOverlayEmbed.style.display = 'flex';
+                }
+                updateControlVisibilityEmbed(); // Hide controls if big play button is shown on pause
+            });
+
+            videoElementEmbed.addEventListener('volumechange', () => {
+                if (volumeSliderEmbed) volumeSliderEmbed.value = videoElementEmbed.volume;
+                updateMuteIconEmbed();
+            });
+            
+            videoElementEmbed.addEventListener('ratechange', () => {
+                if (playbackSpeedSelectEmbed) playbackSpeedSelectEmbed.value = videoElementEmbed.playbackRate;
+            });
+        }
+
+        function updateMuteIconEmbed() {
+            if (volumeUpIconEmbed && volumeMuteIconEmbed && videoElementEmbed) {
+                if (videoElementEmbed.muted || videoElementEmbed.volume === 0) {
+                    volumeUpIconEmbed.style.display = 'none';
+                    volumeMuteIconEmbed.style.display = 'block';
+                } else {
+                    volumeUpIconEmbed.style.display = 'block';
+                    volumeMuteIconEmbed.style.display = 'none';
+                }
+            }
+        }
+
+        if (bigPlayBtnOverlayEmbed) {
+            bigPlayBtnOverlayEmbed.addEventListener('click', () => {
+                videoElementEmbed.play();
+            });
+        }
+
+        if (customControlsEmbed) {
+            customControlsEmbed.querySelectorAll('.control-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const action = button.dataset.action;
+                    if (!videoElementEmbed) return;
+
+                    switch (action) {
+                        case 'playPause':
+                            if (videoElementEmbed.paused) {
+                                videoElementEmbed.play();
+                            } else {
+                                videoElementEmbed.pause();
+                            }
+                            break;
+                        case 'rewind':
+                            // Only perform if not disabled via inline style
+                            if (rewindBtnEmbed && rewindBtnEmbed.style.display !== 'none') {
+                                videoElementEmbed.currentTime -= SEEK_TIME_EMBED;
+                            }
+                            break;
+                        case 'forward':
+                            // Only perform if not disabled via inline style
+                            if (forwardBtnEmbed && forwardBtnEmbed.style.display !== 'none') {
+                                videoElementEmbed.currentTime += SEEK_TIME_EMBED;
+                            }
+                            break;
+                        case 'muteUnmute':
+                            // Only perform if not disabled via inline style
+                            if (muteUnmuteBtnEmbed && muteUnmuteBtnEmbed.style.display !== 'none') {
+                                videoElementEmbed.muted = !videoElementEmbed.muted;
+                            }
+                            break;
+                        case 'pip':
+                            // Only perform if not disabled via inline style
+                            if (pipBtnEmbed && pipBtnEmbed.style.display !== 'none') {
+                                if (document.pictureInPictureElement) {
+                                    document.exitPictureInPicture()
+                                        .catch(error => console.error('Failed to exit Picture-in-Picture:', error));
+                                } else if (videoElementEmbed.requestPictureInPicture) {
+                                    videoElementEmbed.requestPictureInPicture()
+                                        .catch(error => console.error('Failed to enter Picture-in-Picture:', error));
+                                } else {
+                                    console.log('Picture-in-Picture not supported by your browser.');
+                                }
+                            }
+                            break;
+                        case 'fullscreen':
+                            // Only perform if not disabled via inline style
+                            if (fullscreenBtnEmbed && fullscreenBtnEmbed.style.display !== 'none') {
+                                const playerDiv = button.closest('div[style*="position: relative"]'); // Get the main player div
+                                if (playerDiv) {
+                                    if (playerDiv.requestFullscreen) {
+                                        playerDiv.requestFullscreen();
+                                    } else if (playerDiv.mozRequestFullScreen) {
+                                        playerDiv.mozRequestFullScreen();
+                                    } else if (playerDiv.webkitRequestFullscreen) {
+                                        playerDiv.webkitRequestFullscreen();
+                                    } else if (playerDiv.msRequestFullscreen) {
+                                        playerDiv.msRequestFullscreen();
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                });
+            });
+
+            if (playbackSpeedSelectEmbed) {
+                playbackSpeedSelectEmbed.addEventListener('change', () => {
+                    // Only apply change if not disabled via inline style
+                    if (playbackSpeedSelectEmbed.style.display !== 'none' && videoElementEmbed) {
+                        videoElementEmbed.playbackRate = parseFloat(playbackSpeedSelectEmbed.value);
+                    }
+                });
+            }
+        }
+
+
+        if (progressBarWrapperEmbed) {
+            progressBarWrapperEmbed.addEventListener('click', (e) => {
+                if (!videoElementEmbed || !videoElementEmbed.duration) return;
+                const rect = progressBarWrapperEmbed.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const percentage = clickX / rect.width;
+                videoElementEmbed.currentTime = videoElementEmbed.duration * percentage;
+            });
+        }
+
+        if (volumeSliderEmbed) {
+            volumeSliderEmbed.addEventListener('input', () => {
+                // Only apply change if not disabled via inline style
+                if (volumeSliderEmbed.style.display !== 'none' && videoElementEmbed) {
+                    videoElementEmbed.volume = volumeSliderEmbed.value;
+                    videoElementEmbed.muted = (volumeSliderEmbed.value === '0');
+                    updateMuteIconEmbed();
+                }
+            });
+        }
+    });
+<\/script>
+            `.trim();
+
+            modalEmbedCodeOutput.value = embedCode;
+        }
+
+        /* --- Share/Embed Modal Logic --- */
+        shareBtn.addEventListener('click', () => {
+            shareMenu.classList.toggle('open');
+        });
+
+        viewEmbedCodeBtn.addEventListener('click', () => {
+            embedCodeModal.classList.remove('hidden');
+            shareMenu.classList.remove('open');
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            embedCodeModal.classList.add('hidden');
+        });
+
+        copyEmbedCodeBtn.addEventListener('click', () => {
+            modalEmbedCodeOutput.select();
+            document.execCommand('copy');
+            copyMessage.classList.remove('opacity-0');
+            copyMessage.classList.add('opacity-100');
+            setTimeout(() => {
+                copyMessage.classList.remove('opacity-100');
+                copyMessage.classList.add('opacity-0');
+            }, 2000);
+            shareMenu.classList.remove('open');
+        });
+
+        // Initial setup on window load
+        window.onload = () => {
+            applyPlayerStyles();
+            applyPlayerBehaviors();
+            updateControlVisibility(); // Initial control visibility based on default/autoplay
+            updateEmbedCode();
+
+            // Add event listeners for the disable checkboxes immediately on load
+            disableRewindCheckbox.addEventListener('change', updateControlVisibility);
+            disableForwardCheckbox.addEventListener('change', updateControlVisibility);
+            disableVolumeCheckbox.addEventListener('change', updateControlVisibility);
+            disablePlaybackSpeedCheckbox.addEventListener('change', updateControlVisibility);
+            disablePipCheckbox.addEventListener('change', updateControlVisibility);
+            disableFullscreenCheckbox.addEventListener('change', updateControlVisibility);
+        };
+    </script>
+</body>
+</html>
