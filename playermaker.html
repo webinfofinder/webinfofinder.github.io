@@ -375,6 +375,7 @@
                         <div id="shareMenu" class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
                             <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                                 <button id="viewEmbedCodeBtn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md" role="menuitem">View Embed Code</button>
+                                <button id="shareOptionsBtn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md" role="menuitem">Share My Options</button>
                                 <button id="copyEmbedCodeBtn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md" role="menuitem">Copy Embed Code</button>
                             </div>
                         </div>
@@ -384,6 +385,7 @@
             </div>
         </div>
 
+        <!-- Embed Code Modal -->
         <div id="embedCodeModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
             <div class="bg-white rounded-lg p-6 shadow-xl max-w-2xl w-full">
                 <h3 class="text-2xl font-bold mb-4 text-gray-800">Your Embed Code</h3>
@@ -391,6 +393,19 @@
                 <div class="mt-4 flex justify-end">
                     <button id="closeModalBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">Close</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Share Options Modal -->
+        <div id="shareOptionsModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg p-6 shadow-xl max-w-2xl w-full">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">Share Your Player Options</h3>
+                <textarea id="modalShareLinkOutput" rows="5" readonly class="w-full p-4 border border-gray-300 rounded-lg bg-gray-100 font-mono text-base resize-y focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                <div class="mt-4 flex justify-end gap-2">
+                    <button id="copyShareLinkBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">Copy Link</button>
+                    <button id="closeShareOptionsModalBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out">Close</button>
+                </div>
+                <div id="shareLinkCopyMessage" class="mt-3 text-base text-center text-green-700 opacity-0 transition-opacity duration-300 font-medium">Copied to clipboard!</div>
             </div>
         </div>
 
@@ -453,16 +468,28 @@
         const shareBtn = document.getElementById('shareBtn');
         const shareMenu = document.getElementById('shareMenu');
         const viewEmbedCodeBtn = document.getElementById('viewEmbedCodeBtn');
+        const shareOptionsBtn = document.getElementById('shareOptionsBtn'); // New share options button
         const copyEmbedCodeBtn = document.getElementById('copyEmbedCodeBtn');
-        const copyMessage = document.getElementById('copyMessage');
+        const copyMessage = document.getElementById('copyMessage'); // For embed code copy message
+
         const embedCodeModal = document.getElementById('embedCodeModal');
         const closeModalBtn = document.getElementById('closeModalBtn');
         const modalEmbedCodeOutput = document.getElementById('modalEmbedCodeOutput');
+
+        // New elements for share options modal
+        const shareOptionsModal = document.getElementById('shareOptionsModal');
+        const modalShareLinkOutput = document.getElementById('modalShareLinkOutput');
+        const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
+        const closeShareOptionsModalBtn = document.getElementById('closeShareOptionsModalBtn');
+        const shareLinkCopyMessage = document.getElementById('shareLinkCopyMessage'); // For share link copy message
+
 
         let videoSrc = '';
         let thumbnailSrc = '';
         const SEEK_TIME = 10;
         let isVideoPlayedFirstTime = false;
+
+        const BASE_SHARE_URL = "https://webinfofinder.github.io/playermaker.html";
 
 
         function formatTime(seconds) {
@@ -480,6 +507,7 @@
                 // Apply individual control visibility based on disable checkboxes
                 rewindBtn.style.display = disableRewindCheckbox.checked ? 'none' : 'flex';
                 forwardBtn.style.display = disableForwardCheckbox.checked ? 'none' : 'flex';
+                // For volume, consider both button and slider
                 muteUnmuteBtn.style.display = disableVolumeCheckbox.checked ? 'none' : 'flex';
                 volumeSlider.style.display = disableVolumeCheckbox.checked ? 'none' : 'block';
                 playbackSpeedSelect.style.display = disablePlaybackSpeedCheckbox.checked ? 'none' : 'block';
@@ -512,6 +540,7 @@
                     updateControlVisibility(); // Update visibility based on autoplay
                     updateEmbedCode();
                     uploadStatusDiv.classList.add('hidden'); // Hide loading spinner on success
+                    generateShareLink(); // Update share link after video upload
                 };
 
                 fileReader.onerror = () => {
@@ -528,6 +557,7 @@
                     bigPlayBtnOverlay.classList.remove('hidden'); // Show big play button if no video
                     updateControlVisibility(); // Update control visibility
                     updateEmbedCode(); // Update embed code to reflect no video
+                    generateShareLink(); // Update share link after video cancelled
                 };
 
                 fileReader.readAsDataURL(file);
@@ -541,6 +571,7 @@
                 bigPlayBtnOverlay.classList.remove('hidden'); // Show big play button if no video
                 updateControlVisibility(); // Update visibility
                 updateEmbedCode();
+                generateShareLink(); // Update share link
             }
         });
 
@@ -561,6 +592,7 @@
                     thumbnailSrc = e.target.result;
                     videoElement.poster = thumbnailSrc;
                     updateEmbedCode();
+                    generateShareLink(); // Update share link after thumbnail upload
                 };
                 reader.readAsDataURL(file);
             } else {
@@ -568,6 +600,7 @@
                 thumbnailSrc = '';
                 videoElement.removeAttribute('poster'); // Remove poster if thumbnail removed
                 updateEmbedCode();
+                generateShareLink(); // Update share link
             }
         });
 
@@ -667,6 +700,7 @@
             }
             mutedCheckbox.checked = videoElement.muted;
             updateEmbedCode();
+            generateShareLink(); // Update share link
         }
 
         pipBtn.addEventListener('click', () => {
@@ -744,6 +778,7 @@
             }
             applyPlayerStyles();
             updateEmbedCode();
+            generateShareLink(); // Update share link
         }
 
         playerWidthInput.addEventListener('input', () => {
@@ -752,16 +787,19 @@
             } else {
                 applyPlayerStyles();
                 updateEmbedCode();
+                generateShareLink(); // Update share link
             }
         });
         playerHeightInput.addEventListener('input', () => {
             aspectRatioSelect.value = 'custom';
             applyPlayerStyles();
             updateEmbedCode();
+            generateShareLink(); // Update share link
         });
         playerBorderRadiusInput.addEventListener('input', () => {
             applyPlayerStyles();
             updateEmbedCode();
+            generateShareLink(); // Update share link
         });
         aspectRatioSelect.addEventListener('change', () => {
             updateDimensionsForAspectRatio();
@@ -769,35 +807,41 @@
         progressBarColorInput.addEventListener('input', () => {
             applyPlayerStyles();
             updateEmbedCode();
+            generateShareLink(); // Update share link
         });
         controlsBackgroundColorInput.addEventListener('input', () => {
             applyPlayerStyles();
             updateEmbedCode();
+            generateShareLink(); // Update share link
         });
         autoplayCheckbox.addEventListener('change', () => {
             applyPlayerBehaviors();
             updateEmbedCode();
+            generateShareLink(); // Update share link
         });
         loopCheckbox.addEventListener('change', () => {
             applyPlayerBehaviors();
             updateEmbedCode();
+            generateShareLink(); // Update share link
         });
         mutedCheckbox.addEventListener('change', () => {
             applyPlayerBehaviors();
             updateEmbedCode();
+            generateShareLink(); // Update share link
         });
         playbackSpeedSelect.addEventListener('change', () => { // Event listener for the actual select element
             applyPlayerBehaviors();
             updateEmbedCode();
+            generateShareLink(); // Update share link
         });
 
         // Event listeners for new disable checkboxes
-        disableRewindCheckbox.addEventListener('change', updateControlVisibility);
-        disableForwardCheckbox.addEventListener('change', updateControlVisibility);
-        disableVolumeCheckbox.addEventListener('change', updateControlVisibility);
-        disablePlaybackSpeedCheckbox.addEventListener('change', updateControlVisibility);
-        disablePipCheckbox.addEventListener('change', updateControlVisibility);
-        disableFullscreenCheckbox.addEventListener('change', updateControlVisibility);
+        disableRewindCheckbox.addEventListener('change', () => { updateControlVisibility(); updateEmbedCode(); generateShareLink(); });
+        disableForwardCheckbox.addEventListener('change', () => { updateControlVisibility(); updateEmbedCode(); generateShareLink(); });
+        disableVolumeCheckbox.addEventListener('change', () => { updateControlVisibility(); updateEmbedCode(); generateShareLink(); });
+        disablePlaybackSpeedCheckbox.addEventListener('change', () => { updateControlVisibility(); updateEmbedCode(); generateShareLink(); });
+        disablePipCheckbox.addEventListener('change', () => { updateControlVisibility(); updateEmbedCode(); generateShareLink(); });
+        disableFullscreenCheckbox.addEventListener('change', () => { updateControlVisibility(); updateEmbedCode(); generateShareLink(); });
 
         /* --- Embed Code Generation Logic --- */
 
@@ -1152,6 +1196,79 @@
             modalEmbedCodeOutput.value = embedCode;
         }
 
+        /* --- Share Options Link Generation --- */
+        function generateShareLink() {
+            const params = new URLSearchParams();
+            params.set('width', playerWidthInput.value);
+            params.set('height', playerHeightInput.value);
+            params.set('borderRadius', playerBorderRadiusInput.value);
+            params.set('aspectRatio', aspectRatioSelect.value);
+            params.set('progressBarColor', progressBarColorInput.value.replace('#', ''));
+            params.set('controlsBackgroundColor', controlsBackgroundColorInput.value.replace('#', ''));
+            params.set('autoplay', autoplayCheckbox.checked ? '1' : '0');
+            params.set('loop', loopCheckbox.checked ? '1' : '0');
+            params.set('muted', mutedCheckbox.checked ? '1' : '0');
+            params.set('playbackSpeed', playbackSpeedSelect.value);
+            params.set('disableRewind', disableRewindCheckbox.checked ? '1' : '0');
+            params.set('disableForward', disableForwardCheckbox.checked ? '1' : '0');
+            params.set('disableVolume', disableVolumeCheckbox.checked ? '1' : '0');
+            params.set('disablePlaybackSpeed', disablePlaybackSpeedCheckbox.checked ? '1' : '0');
+            params.set('disablePip', disablePipCheckbox.checked ? '1' : '0');
+            params.set('disableFullscreen', disableFullscreenCheckbox.checked ? '1' : '0');
+
+            // If a video is loaded, include its data URL, but be cautious about URL length limits
+            // For simplicity, we'll only include videoSrc if it's small, or omit it for long URLs
+            if (videoSrc && videoSrc.length < 2000) { // Arbitrary limit to prevent excessively long URLs
+                params.set('videoSrc', videoSrc);
+            }
+            if (thumbnailSrc && thumbnailSrc.length < 2000) {
+                params.set('thumbnailSrc', thumbnailSrc);
+            }
+
+            const shareLink = `${BASE_SHARE_URL}?${params.toString()}`;
+            modalShareLinkOutput.value = shareLink;
+        }
+
+        /* --- Parse URL Parameters on Load --- */
+        function parseUrlParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            if (urlParams.has('width')) playerWidthInput.value = urlParams.get('width');
+            if (urlParams.has('height')) playerHeightInput.value = urlParams.get('height');
+            if (urlParams.has('borderRadius')) playerBorderRadiusInput.value = urlParams.get('borderRadius');
+            if (urlParams.has('aspectRatio')) aspectRatioSelect.value = urlParams.get('aspectRatio');
+            if (urlParams.has('progressBarColor')) progressBarColorInput.value = `#${urlParams.get('progressBarColor')}`;
+            if (urlParams.has('controlsBackgroundColor')) controlsBackgroundColorInput.value = `#${urlParams.get('controlsBackgroundColor')}`;
+            if (urlParams.has('autoplay')) autoplayCheckbox.checked = urlParams.get('autoplay') === '1';
+            if (urlParams.has('loop')) loopCheckbox.checked = urlParams.get('loop') === '1';
+            if (urlParams.has('muted')) mutedCheckbox.checked = urlParams.get('muted') === '1';
+            if (urlParams.has('playbackSpeed')) playbackSpeedSelect.value = urlParams.get('playbackSpeed');
+            if (urlParams.has('disableRewind')) disableRewindCheckbox.checked = urlParams.get('disableRewind') === '1';
+            if (urlParams.has('disableForward')) disableForwardCheckbox.checked = urlParams.get('disableForward') === '1';
+            if (urlParams.has('disableVolume')) disableVolumeCheckbox.checked = urlParams.get('disableVolume') === '1';
+            if (urlParams.has('disablePlaybackSpeed')) disablePlaybackSpeedCheckbox.checked = urlParams.get('disablePlaybackSpeed') === '1';
+            if (urlParams.has('disablePip')) disablePipCheckbox.checked = urlParams.get('disablePip') === '1';
+            if (urlParams.has('disableFullscreen')) disableFullscreenCheckbox.checked = urlParams.get('disableFullscreen') === '1';
+
+            // Load video and thumbnail from URL if present
+            if (urlParams.has('videoSrc')) {
+                videoSrc = urlParams.get('videoSrc');
+                videoElement.src = videoSrc;
+                fileNameSpan.textContent = "Video loaded from URL.";
+            }
+            if (urlParams.has('thumbnailSrc')) {
+                thumbnailSrc = urlParams.get('thumbnailSrc');
+                videoElement.poster = thumbnailSrc;
+                thumbnailNameSpan.textContent = "Thumbnail loaded from URL.";
+            }
+
+            // Apply all settings parsed from URL
+            applyPlayerStyles();
+            applyPlayerBehaviors();
+            updateControlVisibility(); // Update control visibility based on disable options
+        }
+
+
         /* --- Share/Embed Modal Logic --- */
         shareBtn.addEventListener('click', () => {
             shareMenu.classList.toggle('open');
@@ -1162,27 +1279,38 @@
             shareMenu.classList.remove('open');
         });
 
+        shareOptionsBtn.addEventListener('click', () => {
+            generateShareLink(); // Generate the link before showing the modal
+            shareOptionsModal.classList.remove('hidden');
+            shareMenu.classList.remove('open');
+        });
+
         closeModalBtn.addEventListener('click', () => {
             embedCodeModal.classList.add('hidden');
         });
 
-        copyEmbedCodeBtn.addEventListener('click', async () => {
+        closeShareOptionsModalBtn.addEventListener('click', () => {
+            shareOptionsModal.classList.add('hidden');
+        });
+
+        copyEmbedCodeBtn.addEventListener('click', () => {
+            modalEmbedCodeOutput.select(); // Select the text area content
             try {
-                await navigator.clipboard.writeText(modalEmbedCodeOutput.value);
-                copyMessage.textContent = 'Copied to clipboard!';
-                copyMessage.classList.remove('opacity-0', 'text-red-700');
-                copyMessage.classList.add('opacity-100', 'text-green-700');
-            } catch (err) {
-                console.error('Failed to copy text: ', err);
-                if (err.name === 'NotAllowedError') {
-                    copyMessage.textContent = 'Copy failed: Please allow clipboard access in browser settings.';
-                    copyMessage.classList.remove('opacity-0', 'text-green-700');
-                    copyMessage.classList.add('opacity-100', 'text-red-700');
+                const success = document.execCommand('copy'); // Execute copy command
+                if (success) {
+                    copyMessage.textContent = 'Copied to clipboard!';
+                    copyMessage.classList.remove('opacity-0', 'text-red-700');
+                    copyMessage.classList.add('opacity-100', 'text-green-700');
                 } else {
                     copyMessage.textContent = 'Failed to copy to clipboard.';
                     copyMessage.classList.remove('opacity-0', 'text-green-700');
                     copyMessage.classList.add('opacity-100', 'text-red-700');
                 }
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                copyMessage.textContent = 'Failed to copy to clipboard.';
+                copyMessage.classList.remove('opacity-0', 'text-green-700');
+                copyMessage.classList.add('opacity-100', 'text-red-700');
             } finally {
                 setTimeout(() => {
                     copyMessage.classList.remove('opacity-100');
@@ -1192,20 +1320,41 @@
             shareMenu.classList.remove('open');
         });
 
+        copyShareLinkBtn.addEventListener('click', () => {
+            modalShareLinkOutput.select(); // Select the text area content
+            try {
+                const success = document.execCommand('copy'); // Execute copy command
+                if (success) {
+                    shareLinkCopyMessage.textContent = 'Copied to clipboard!';
+                    shareLinkCopyMessage.classList.remove('opacity-0', 'text-red-700');
+                    shareLinkCopyMessage.classList.add('opacity-100', 'text-green-700');
+                } else {
+                    shareLinkCopyMessage.textContent = 'Failed to copy to clipboard.';
+                    shareLinkCopyMessage.classList.remove('opacity-0', 'text-green-700');
+                    shareLinkCopyMessage.classList.add('opacity-100', 'text-red-700');
+                }
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                shareLinkCopyMessage.textContent = 'Failed to copy to clipboard.';
+                shareLinkCopyMessage.classList.remove('opacity-0', 'text-green-700');
+                shareLinkCopyMessage.classList.add('opacity-100', 'text-red-700');
+            } finally {
+                setTimeout(() => {
+                    shareLinkCopyMessage.classList.remove('opacity-100');
+                    shareLinkCopyMessage.classList.add('opacity-0');
+                }, 3000); // Increased timeout for visibility
+            }
+        });
+
+
         // Initial setup on window load
         window.onload = () => {
+            parseUrlParameters(); // Parse URL parameters first
             applyPlayerStyles();
             applyPlayerBehaviors();
             updateControlVisibility(); // Initial control visibility based on default/autoplay
             updateEmbedCode();
-
-            // Add event listeners for the disable checkboxes immediately on load
-            disableRewindCheckbox.addEventListener('change', updateControlVisibility);
-            disableForwardCheckbox.addEventListener('change', updateControlVisibility);
-            disableVolumeCheckbox.addEventListener('change', updateControlVisibility);
-            disablePlaybackSpeedCheckbox.addEventListener('change', updateControlVisibility);
-            disablePipCheckbox.addEventListener('change', updateControlVisibility);
-            disableFullscreenCheckbox.addEventListener('change', updateControlVisibility);
+            generateShareLink(); // Generate initial share link based on default/parsed settings
         };
     </script>
 </body>
