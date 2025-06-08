@@ -162,6 +162,20 @@
             text-overflow: ellipsis; /* Add ellipsis for overflow */
             max-width: 56px; /* Max width before ellipsis */
         }
+
+        /* Spinner animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3B82F6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-100 to-gray-300 text-gray-800">
@@ -180,6 +194,13 @@
                     </label>
                     <input type="file" id="videoUpload" accept="video/*" class="hidden">
                     <p id="fileName" class="mt-4 text-base text-gray-600 text-center">No video selected. Please upload a video file.</p>
+
+                    <!-- Loading spinner and text -->
+                    <div id="uploadStatus" class="mt-4 flex items-center justify-center space-x-3 hidden">
+                        <div class="spinner"></div>
+                        <span class="text-lg font-medium text-gray-700">Uploading to database...</span>
+                        <button id="cancelUploadBtn" class="ml-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200">Cancel</button>
+                    </div>
 
                     <h2 class="text-3xl font-bold mt-8 mb-5 text-gray-800 flex items-center">
                         <span class="material-icons mr-3 text-blue-600 text-4xl">image</span>
@@ -386,6 +407,11 @@
         const bigPlayBtnOverlay = document.getElementById('bigPlayBtnOverlay');
         const customControls = document.querySelector('.custom-controls');
 
+        // New elements for upload status
+        const uploadStatusDiv = document.getElementById('uploadStatus');
+        const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+        let fileReader = null; // To store the FileReader instance
+
 
         const playerWidthInput = document.getElementById('playerWidth');
         const playerHeightInput = document.getElementById('playerHeight');
@@ -470,8 +496,11 @@
             const file = event.target.files[0];
             if (file) {
                 fileNameSpan.textContent = `Selected: ${file.name}`;
-                const reader = new FileReader();
-                reader.onload = (e) => {
+                uploadStatusDiv.classList.remove('hidden'); // Show loading spinner
+                cancelUploadBtn.classList.remove('hidden'); // Show cancel button
+
+                fileReader = new FileReader();
+                fileReader.onload = (e) => {
                     videoSrc = e.target.result;
                     videoElement.src = videoSrc;
                     videoElement.load();
@@ -482,18 +511,46 @@
                     }
                     updateControlVisibility(); // Update visibility based on autoplay
                     updateEmbedCode();
+                    uploadStatusDiv.classList.add('hidden'); // Hide loading spinner on success
                 };
-                reader.readAsDataURL(file);
+
+                fileReader.onerror = () => {
+                    fileNameSpan.textContent = 'Failed to load video.';
+                    uploadStatusDiv.classList.add('hidden'); // Hide loading spinner on error
+                };
+
+                fileReader.onabort = () => {
+                    fileNameSpan.textContent = 'Video upload cancelled.';
+                    uploadStatusDiv.classList.add('hidden'); // Hide loading spinner on abort
+                    videoSrc = ''; // Clear video source
+                    videoElement.src = ''; // Clear video element source
+                    videoElement.removeAttribute('poster'); // Remove poster if video removed
+                    bigPlayBtnOverlay.classList.remove('hidden'); // Show big play button if no video
+                    updateControlVisibility(); // Update control visibility
+                    updateEmbedCode(); // Update embed code to reflect no video
+                };
+
+                fileReader.readAsDataURL(file);
             } else {
                 fileNameSpan.textContent = 'No video selected. Please upload a video file.';
                 videoSrc = '';
                 videoElement.src = '';
                 isVideoPlayedFirstTime = false;
                 videoElement.removeAttribute('poster'); // Remove poster if video removed
+                uploadStatusDiv.classList.add('hidden'); // Hide loading spinner
+                bigPlayBtnOverlay.classList.remove('hidden'); // Show big play button if no video
                 updateControlVisibility(); // Update visibility
                 updateEmbedCode();
             }
         });
+
+        // Cancel upload button event listener
+        cancelUploadBtn.addEventListener('click', () => {
+            if (fileReader && fileReader.readyState === FileReader.LOADING) {
+                fileReader.abort();
+            }
+        });
+
 
         thumbnailUpload.addEventListener('change', (event) => {
             const file = event.target.files[0];
